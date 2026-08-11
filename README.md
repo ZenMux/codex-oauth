@@ -38,6 +38,7 @@ Do not run or capture `token` for debugging. It is intended for Codex and prints
 - The package requests `inference:invoke offline_access` by default.
 - Access tokens are refreshed before expiry; rotated refresh tokens are saved atomically.
 - macOS credentials are stored in Keychain. Other platforms currently use `~/.config/zenmux/codex-oauth/credentials.json` with mode `0600`.
+- When macOS has an HTTPS system proxy, the CLI automatically starts its network process with that proxy; no machine-specific proxy address is stored in configuration.
 - Tokens are never stored in `config.toml`.
 
 The generated provider configuration uses the supported Codex shape:
@@ -76,6 +77,18 @@ Run validation locally:
 npm test
 npm pack --dry-run
 ```
+
+### Isolated production OAuth test environment
+
+The development commands keep Codex configuration and OAuth client state under `.dev/`, separate from the normal `~/.codex` environment. OAuth authorization and model requests both use production ZenMux endpoints while the local Codex configuration remains disposable.
+
+```bash
+npm run dev:setup
+npm run dev:login
+npm run dev:codex
+```
+
+The default test model is `openai/gpt-5.6-sol`. The setup command copies its metadata from the installed Codex model cache, changes the slug to the ZenMux model ID, and disables the first-party Responses Lite transport for the custom provider. Override the model only when matching Codex metadata is available locally: `ZENMUX_TEST_MODEL=<provider/model> npm run dev:setup`.
 
 ## Security
 

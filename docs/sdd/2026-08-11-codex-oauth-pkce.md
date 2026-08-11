@@ -27,6 +27,7 @@ On macOS, access and refresh tokens are stored as one generic-password item in K
 - Refresh-token rotation is persisted before the refreshed access token is returned.
 - Concurrent token commands serialize refresh through an exclusive lock file.
 - A crashed refresh process cannot leave a permanent lock; a later command removes locks owned by dead processes.
+- On macOS, a configured system HTTPS proxy is detected and passed through Node's environment-proxy support without persisting the machine-specific proxy address.
 - Tokens are never written to Codex configuration or status output.
 
 ## Compatibility boundary
@@ -38,3 +39,7 @@ The installer backs up an existing configuration, preserves unrelated user confi
 ## Verification
 
 Automated tests cover PKCE derivation, authorization parameters, token rotation normalization, safe OAuth errors, replacement of API-key provider configuration, preservation of unrelated tables, and installer idempotency. Plugin validation and npm pack inspection are required before release.
+
+Local end-to-end verification uses an ignored `.dev/` environment. It isolates `CODEX_HOME` and OAuth client state, sends authorization to production `https://zenmux.ai`, keeps model traffic on the production Responses-compatible API, and launches Codex with the same environment inherited by `auth.command`. The test client remains a dynamically registered native public client with no client secret.
+
+Command-backed custom providers cause Codex to query their `/models` endpoint using the Codex catalog schema, which differs from the standard OpenAI `{ data: [...] }` response returned by ZenMux. The isolated environment therefore copies the selected model's installed Codex metadata into a one-model local catalog, changes its slug to the ZenMux model ID, and disables first-party-only Responses Lite and hosted multi-agent transport flags.

@@ -42,8 +42,12 @@
     "access": "public"
   },
   "scripts": {
-    "check": "node --check bin/zenmux-codex-auth.mjs && node --check src/cli.mjs && node --check src/oauth.mjs && node --check src/storage.mjs && node --check src/codex-config.mjs",
+    "check": "node --check bin/zenmux-codex-auth.mjs && node --check src/cli.mjs && node --check src/oauth.mjs && node --check src/storage.mjs && node --check src/codex-config.mjs && node --check src/proxy.mjs",
     "test": "npm run check && node --test",
-    "prepack": "npm test"
+    "prepack": "npm test",
+    "dev:setup": "node scripts/dev-environment.mjs setup",
+    "dev:login": "node scripts/dev-environment.mjs login",
+    "dev:status": "node scripts/dev-environment.mjs status",
+    "dev:codex": "node scripts/dev-environment.mjs codex"
   }
 }
