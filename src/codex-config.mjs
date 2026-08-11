@@ -20,6 +20,7 @@ import { fetchProductionModelCatalog } from './model-catalog.mjs';
 
 const providerHeader = '[model_providers.zenmux]';
 const authHeader = '[model_providers.zenmux.auth]';
+const featuresHeader = '[features]';
 const multiAgentHeader = '[features.multi_agent_v2]';
 
 function quoteToml(value) {
@@ -83,6 +84,24 @@ function upsertTableSetting(lines, header, key, value) {
   return [...before, `${key} = ${value}`, ...table, ...lines.slice(tableEnd)];
 }
 
+function removeTableSetting(lines, header, key) {
+  const headerIndex = lines.findIndex(line => line.trim() === header);
+  if (headerIndex === -1) return lines;
+  let tableEnd = lines.length;
+  for (let index = headerIndex + 1; index < lines.length; index += 1) {
+    if (/^\s*\[/.test(lines[index])) {
+      tableEnd = index;
+      break;
+    }
+  }
+  const settingPattern = new RegExp(`^\\s*${key}\\s*=`);
+  return [
+    ...lines.slice(0, headerIndex + 1),
+    ...lines.slice(headerIndex + 1, tableEnd).filter(line => !settingPattern.test(line)),
+    ...lines.slice(tableEnd),
+  ];
+}
+
 export function updateCodexConfig(source, commandPath, catalogPath = modelCatalogPath) {
   let lines = source.replace(/\r\n/g, '\n').split('\n');
   lines = removeTable(lines, providerHeader);
@@ -105,6 +124,7 @@ export function updateCodexConfig(source, commandPath, catalogPath = modelCatalo
     '',
   );
   lines = [...root, ...lines.slice(rootEnd)];
+  lines = removeTableSetting(lines, featuresHeader, 'multi_agent_v2');
   lines = upsertTableSetting(lines, multiAgentHeader, 'tool_namespace', '"agents"');
   while (lines.length && lines.at(-1).trim() === '') lines.pop();
 

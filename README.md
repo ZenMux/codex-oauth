@@ -21,6 +21,8 @@ Restart Codex after installation. The installer selects the `zenmux` provider bu
 
 `zenmux-codex-auth install` is the Codex configuration step, not the npm installation step. It downloads the current production models that explicitly support the Responses protocol, writes a private Codex catalog, configures the `agents` namespace for v2 multi-agent models, and records the original configuration for a later restore. OpenAI GPT-series entries use ZenMux's native aliases (for example `gpt-5.6-sol`) and opt into Codex multi-agent v2; other providers keep their full ZenMux slugs and follow Codex's default multi-agent behavior.
 
+When migrating an existing Codex configuration, install removes the legacy `[features]` entry `multi_agent_v2 = true` before creating `[features.multi_agent_v2]`. TOML does not allow the same key to be both a Boolean and a settings table.
+
 The installer sets Codex's native Responses `web_search` mode to `disabled`. Current Codex cannot disable that OpenAI-native tool per catalog entry, while protocol-converted Responses models such as Claude reject it. This keeps the full production Responses catalog usable across providers. Uninstall restores the user's previous Web Search setting together with the rest of `config.toml`.
 
 ## Commands

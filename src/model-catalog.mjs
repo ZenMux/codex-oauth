@@ -64,7 +64,7 @@ export function createCodexModelCatalog(models) {
         include_skills_usage_instructions: false,
         service_tiers: [],
         additional_speed_tiers: [],
-        comp_hash: 'zenmux-0.2.0',
+        comp_hash: 'zenmux-0.2.1',
         supports_parallel_tool_calls: true,
         context_window: contextWindow,
         max_context_window: contextWindow,

@@ -1,6 +1,6 @@
 {
   "name": "codex-oauth",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Configure ZenMux Responses models in Codex with OAuth 2.0 PKCE and reversible setup.",
   "author": {
     "name": "zenmux"

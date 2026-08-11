@@ -50,6 +50,21 @@ tool_namespace = "old"
   assert.equal((updated.match(/tool_namespace\s*=/g) || []).length, 1);
 });
 
+test('migrates the legacy multi_agent_v2 feature flag before creating its settings table', () => {
+  const source = `[features]
+hooks = true
+multi_agent_v2 = true
+
+[projects."/work"]
+trust_level = "trusted"
+`;
+  const updated = updateCodexConfig(source, '/opt/zenmux-codex-auth', '/tmp/models.json');
+  assert.match(updated, /\[features\]\nhooks = true/);
+  assert.doesNotMatch(updated, /^multi_agent_v2\s*=/m);
+  assert.match(updated, /\[features\.multi_agent_v2\]\ntool_namespace = "agents"/);
+  assert.match(updated, /\[projects\."\/work"\]\ntrust_level = "trusted"/);
+});
+
 test('is idempotent', () => {
   const once = updateCodexConfig('', '/opt/zenmux-codex-auth', '/tmp/models.json');
   const twice = updateCodexConfig(once, '/opt/zenmux-codex-auth', '/tmp/models.json');
