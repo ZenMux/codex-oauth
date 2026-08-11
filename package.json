@@ -1,6 +1,6 @@
 {
   "name": "@zenmux/codex-oauth",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OAuth 2.0 PKCE authentication helper for using ZenMux as a custom model provider in Codex",
   "type": "module",
   "bin": {
@@ -42,7 +42,7 @@
     "access": "public"
   },
   "scripts": {
-    "check": "node --check bin/zenmux-codex-auth.mjs && node --check src/cli.mjs && node --check src/oauth.mjs && node --check src/storage.mjs && node --check src/codex-config.mjs && node --check src/proxy.mjs",
+    "check": "node --check bin/zenmux-codex-auth.mjs && node --check src/cli.mjs && node --check src/oauth.mjs && node --check src/storage.mjs && node --check src/codex-config.mjs && node --check src/model-catalog.mjs && node --check src/proxy.mjs",
     "test": "npm run check && node --test",
     "prepack": "npm test",
     "dev:setup": "node scripts/dev-environment.mjs setup",

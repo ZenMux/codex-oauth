@@ -1,10 +1,12 @@
-import { installCodexConfig } from './codex-config.mjs';
+import { installCodexConfig, uninstallCodexConfig } from './codex-config.mjs';
 import { getAccessToken, getStatus, login, logout } from './oauth.mjs';
 
 const help = `ZenMux OAuth for Codex
 
 Usage:
-  zenmux-codex-auth install  Configure the ZenMux model provider in Codex
+  zenmux-codex-auth install  Configure ZenMux and its production Responses catalog
+  zenmux-codex-auth uninstall [--force]
+                             Restore the Codex config saved before installation
   zenmux-codex-auth login    Sign in to ZenMux with OAuth 2.0 PKCE
   zenmux-codex-auth token    Print a valid access token for Codex auth.command
   zenmux-codex-auth status   Show authentication status without revealing tokens
@@ -19,9 +21,18 @@ export async function runCli(args) {
     return;
   }
   if (command === 'install') {
-    const path = await installCodexConfig();
-    process.stdout.write(`Configured ZenMux in ${path}\n`);
+    const result = await installCodexConfig();
+    process.stdout.write(`Configured ZenMux in ${result.configPath}\n`);
+    process.stdout.write(`Installed ${result.modelCount} production Responses models in ${result.modelCatalogPath}\n`);
     process.stdout.write('Next: run `zenmux-codex-auth login`, then restart Codex.\n');
+    return;
+  }
+  if (command === 'uninstall') {
+    const flags = args.slice(1);
+    if (flags.some(flag => flag !== '--force')) throw new Error(`Unknown uninstall option: ${flags.join(' ')}`);
+    const result = await uninstallCodexConfig({ force: flags.includes('--force') });
+    process.stdout.write(`${result.restored ? 'Restored' : 'Removed'} Codex configuration at ${result.configPath}\n`);
+    process.stdout.write('OAuth credentials were preserved. Run `zenmux-codex-auth logout` to remove them.\n');
     return;
   }
   if (command === 'login') {

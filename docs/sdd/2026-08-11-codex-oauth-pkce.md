@@ -36,6 +36,16 @@ The Codex provider uses the Responses wire API. MCP OAuth is intentionally not u
 
 The installer backs up an existing configuration, preserves unrelated user configuration, replaces an existing `model_providers.zenmux` table, and atomically writes `model_provider = "zenmux"` at the TOML root before the first table.
 
+The production installer queries `/api/frontend/model/listByFilter?supported_protocol=responses`, defensively keeps only entries whose `suitable_api` contains the exact `responses` protocol, writes a private Codex-schema catalog under the OAuth state directory, and configures its path through root-level `model_catalog_json`. OpenAI GPT-series entries use their first production native alias (for example `gpt-5.6-sol`) to preserve Codex model-specific behavior; other providers retain their full ZenMux slug. The catalog disables first-party-only Responses Lite and hosted tool mode. OpenAI GPT entries set `multi_agent_version` to `v2`, while config sets `[features.multi_agent_v2] tool_namespace = "agents"`, so Codex 0.144.1 and newer avoid conflicts with model-reserved `collaboration` tool names. Other model families leave the explicit version unset (`null`) and follow Codex's default multi-agent behavior.
+
+OpenAI GPT native aliases use Codex's freeform apply-patch tool. Other model families set `apply_patch_tool_type` to `null`, preventing Codex from injecting a freeform/custom patch tool that their ZenMux Responses adapters may reject.
+
+OpenAI GPT native aliases retain Codex's `text_and_image` Web Search catalog metadata. Other model families omit `web_search_tool_type` and set `supports_search_tool` to `false`. Root configuration disables the native Responses Web Search tool for the provider as described below.
+
+Codex currently defaults an omitted per-model Web Search type to `text` and offers no per-model disabled variant. Installation therefore sets root-level `web_search = "disabled"` so the complete cross-provider Responses catalog remains callable. Uninstall restores the original setting as part of exact configuration restoration.
+
+The first installation records the exact `config.toml` path, whether the file existed, and its exact contents. Reinstallation refreshes the model catalog without replacing that original restore point. Install and uninstall reject restore state associated with a different Codex config path. `uninstall` restores the original configuration and removes the generated catalog while leaving OAuth credentials intact. If the current configuration no longer matches the installed digest, uninstall requires `--force`; forced restore first copies the current file to `config.toml.zenmux-uninstall.bak`.
+
 ## Verification
 
 Automated tests cover PKCE derivation, authorization parameters, token rotation normalization, safe OAuth errors, replacement of API-key provider configuration, preservation of unrelated tables, and installer idempotency. Plugin validation and npm pack inspection are required before release.
