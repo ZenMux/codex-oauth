@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+
+import { runCli } from '../src/cli.mjs';
+
+runCli(process.argv.slice(2)).catch((error) => {
+  process.stderr.write(`zenmux-codex-auth: ${error.message}\n`);
+  process.exitCode = 1;
+});

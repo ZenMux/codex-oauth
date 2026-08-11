@@ -1,0 +1,21 @@
+{
+  "name": "codex-oauth",
+  "version": "0.1.0",
+  "description": "Use ZenMux models in Codex with OAuth 2.0 Authorization Code and PKCE.",
+  "author": {
+    "name": "zenmux"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ZenMux OAuth",
+    "shortDescription": "Connect Codex to ZenMux with OAuth PKCE.",
+    "longDescription": "ZenMux OAuth configures a Codex custom model provider and manages short-lived OAuth access tokens with PKCE login and refresh-token rotation.",
+    "developerName": "ZenMux",
+    "category": "Developer Tools",
+    "capabilities": [
+      "OAuth 2.0 PKCE login",
+      "Codex custom model provider configuration"
+    ],
+    "defaultPrompt": "Help me connect Codex to ZenMux using OAuth PKCE."
+  }
+}
