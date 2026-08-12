@@ -3,6 +3,8 @@ import { createServer } from 'node:http';
 import {
   apiBaseUrl,
   oauthOrigin,
+  productionOAuthClientId,
+  productionOAuthOrigin,
   requestedScopes,
 } from './constants.mjs';
 import { buildAuthorizationUrl, createPkce, createState } from './pkce.mjs';
@@ -38,6 +40,7 @@ export async function registerClient(fetchImpl = fetch) {
   if (configured) return configured;
   const cached = await readClientId();
   if (cached) return cached;
+  if (oauthOrigin === productionOAuthOrigin) return productionOAuthClientId;
   const payload = await requestJson(`${oauthOrigin}/oauth/register`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

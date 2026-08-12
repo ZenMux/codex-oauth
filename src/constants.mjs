@@ -2,6 +2,8 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 export const oauthOrigin = (process.env.ZENMUX_OAUTH_ORIGIN || 'https://zenmux.ai').replace(/\/$/, '');
+export const productionOAuthOrigin = 'https://zenmux.ai';
+export const productionOAuthClientId = 'zpc_3GWvxDXg8RhAUzhJPVdgMueR';
 export const apiBaseUrl = (process.env.ZENMUX_API_BASE_URL || 'https://zenmux.ai/api/v1').replace(/\/$/, '');
 export const modelsCatalogUrl = process.env.ZENMUX_MODELS_CATALOG_URL
   || `${oauthOrigin}/api/frontend/model/listByFilter?supported_protocol=responses`;

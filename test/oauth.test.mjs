@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { productionOAuthClientId } from '../src/constants.mjs';
 import { normalizeCredentials, requestJson } from '../src/oauth.mjs';
+
+test('ships one stable production OAuth public client', () => {
+  assert.equal(productionOAuthClientId, 'zpc_3GWvxDXg8RhAUzhJPVdgMueR');
+});
 
 test('normalizes rotating OAuth credentials', () => {
   const before = Date.now();

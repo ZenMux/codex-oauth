@@ -41,7 +41,7 @@ Do not run or capture `token` for debugging. It is intended for Codex and prints
 
 ## How it works
 
-- The first login automatically registers a native public OAuth client.
+- The official `https://zenmux.ai` service uses one bundled native public OAuth client ID. Existing cached client IDs remain valid for previously issued credentials; non-production origins still register and cache a client on first use.
 - Installation downloads the production Responses model list and makes it available in Codex `/model` through `model_catalog_json`.
 - Authorization uses PKCE with `S256` and a temporary loopback callback on `127.0.0.1`.
 - The package requests `inference:invoke offline_access` by default.
@@ -73,7 +73,7 @@ timeout_ms = 15000
 | --- | --- | --- |
 | `ZENMUX_OAUTH_ORIGIN` | `https://zenmux.ai` | OAuth authorization-server origin |
 | `ZENMUX_API_BASE_URL` | `https://zenmux.ai/api/v1` | Responses-compatible API base URL |
-| `ZENMUX_OAUTH_CLIENT_ID` | automatic registration | Reuse a registered native public client |
+| `ZENMUX_OAUTH_CLIENT_ID` | bundled for `https://zenmux.ai` | Override the public client ID for development or self-hosted environments |
 | `ZENMUX_OAUTH_SCOPES` | `inference:invoke offline_access` | OAuth scopes requested at login |
 | `ZENMUX_MODELS_CATALOG_URL` | production Responses-filtered model endpoint | Override the model source for development |
 | `CODEX_HOME` | `~/.codex` | Codex configuration directory |
