@@ -43,7 +43,7 @@ Do not run or capture `token` for debugging. It is intended for Codex and prints
 
 - The official `https://zenmux.ai` service uses one bundled native public OAuth client ID. Existing cached client IDs remain valid for previously issued credentials; non-production origins still register and cache a client on first use.
 - Installation downloads the production Responses model list and makes it available in Codex `/model` through `model_catalog_json`.
-- Authorization uses PKCE with `S256` and a temporary loopback callback on `127.0.0.1`.
+- Authorization uses PKCE with `S256` and a temporary loopback callback on `127.0.0.1`; after validation, the callback renders `https://zenmux.ai/platform/oauth-completed?client=codex` in a full-screen iframe.
 - The package requests `inference:invoke offline_access` by default.
 - Access tokens are refreshed before expiry; rotated refresh tokens are saved atomically.
 - macOS credentials are stored in Keychain. Other platforms currently use `~/.config/zenmux/codex-oauth/credentials.json` with mode `0600`.

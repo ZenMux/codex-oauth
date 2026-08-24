@@ -11,7 +11,7 @@ The integration must not copy OAuth tokens into `config.toml`, require a client 
 Ship `@zenmux/codex-oauth` with a `zenmux-codex-auth` executable:
 
 - `install` updates the user-level Codex configuration with the ZenMux Responses provider and an `auth.command` entry;
-- `login` registers a native public client when necessary, starts an ephemeral `127.0.0.1` callback, verifies OAuth `state`, and exchanges the authorization code with an RFC 7636 S256 verifier;
+- `login` registers a native public client when necessary, starts an ephemeral `127.0.0.1` callback, verifies OAuth `state`, renders `https://zenmux.ai/platform/oauth-completed?client=codex` in a full-screen iframe on success, and exchanges the authorization code with an RFC 7636 S256 verifier;
 - Codex caches the `token` result for up to five minutes; when rerun, `token` returns only a valid access token and refreshes credentials with ten minutes or less remaining under a cross-process lock;
 - `status` reports only non-sensitive metadata;
 - `logout` removes OAuth credentials.

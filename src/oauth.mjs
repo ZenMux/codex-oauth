@@ -18,6 +18,26 @@ import {
 } from './storage.mjs';
 
 export const defaultMinimumAccessTokenLifetimeMs = 10 * 60 * 1000;
+export const oauthCompletionUrl = 'https://zenmux.ai/platform/oauth-completed?client=codex';
+
+export function renderOAuthCompletionPage() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZenMux authorization completed</title>
+  <style>
+    html, body, iframe { width: 100%; height: 100%; margin: 0; border: 0; }
+    body { overflow: hidden; }
+    iframe { display: block; }
+  </style>
+</head>
+<body>
+  <iframe src="${oauthCompletionUrl}" title="ZenMux authorization completed"></iframe>
+</body>
+</html>`;
+}
 
 export async function requestJson(url, options = {}, fetchImpl = fetch) {
   const response = await fetchImpl(url, {
@@ -127,8 +147,8 @@ function waitForAuthorization({ clientId, challenge, state, timeoutMs = 5 * 60 *
         finish(() => reject(new Error(errorDescription || oauthError || 'OAuth callback state mismatch')));
         return;
       }
-      response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
-      response.end('ZenMux authorization completed. You can close this window and return to Codex.');
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      response.end(renderOAuthCompletionPage());
       finish(() => resolve({ code, redirectUri }));
     });
     server.on('error', error => finish(() => reject(error)));

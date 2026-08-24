@@ -4,6 +4,8 @@ import { productionOAuthClientId } from '../src/constants.mjs';
 import {
   defaultMinimumAccessTokenLifetimeMs,
   normalizeCredentials,
+  oauthCompletionUrl,
+  renderOAuthCompletionPage,
   requestJson,
 } from '../src/oauth.mjs';
 
@@ -13,6 +15,13 @@ test('ships one stable production OAuth public client', () => {
 
 test('refreshes access tokens ten minutes before expiry', () => {
   assert.equal(defaultMinimumAccessTokenLifetimeMs, 10 * 60 * 1000);
+});
+
+test('renders the Codex completion page in a full-screen iframe', () => {
+  const html = renderOAuthCompletionPage();
+  assert.equal(oauthCompletionUrl, 'https://zenmux.ai/platform/oauth-completed?client=codex');
+  assert.match(html, /<iframe src="https:\/\/zenmux\.ai\/platform\/oauth-completed\?client=codex"/);
+  assert.match(html, /html, body, iframe \{ width: 100%; height: 100%; margin: 0; border: 0; \}/);
 });
 
 test('normalizes rotating OAuth credentials', () => {
