@@ -19,7 +19,7 @@ zenmux-codex-auth login
 
 Restart Codex after installation. The installer selects the `zenmux` provider but leaves your existing model name unchanged. When a configuration already exists, its previous contents are preserved in `config.toml.bak`.
 
-`zenmux-codex-auth install` is the Codex configuration step, not the npm installation step. It downloads the current production models that explicitly support the Responses protocol, writes a private Codex catalog, configures the `agents` namespace for v2 multi-agent models, and records the original configuration for a later restore. OpenAI GPT-series entries use ZenMux's native aliases (for example `gpt-5.6-sol`) and opt into Codex multi-agent v2; other providers keep their full ZenMux slugs and follow Codex's default multi-agent behavior.
+`zenmux-codex-auth install` is the Codex configuration step, not the npm installation step. It downloads the current production models that explicitly support the Responses protocol, writes a private Codex catalog, configures the `agents` namespace for v2 multi-agent models, and records the original configuration for a later restore. OpenAI GPT-series entries are listed first because they support Codex's Responses cache controls, use ZenMux's native aliases (for example `gpt-5.6-sol`), and opt into Codex multi-agent v2; other providers keep their full ZenMux slugs and follow Codex's default multi-agent behavior.
 
 When migrating an existing Codex configuration, install removes the legacy `[features]` entry `multi_agent_v2 = true` before creating `[features.multi_agent_v2]`. TOML does not allow the same key to be both a Boolean and a settings table.
 

@@ -21,20 +21,26 @@ function splitList(value) {
   return String(value || '').split(',').map(item => item.trim()).filter(Boolean);
 }
 
+function isNativeGptModel(model) {
+  return String(model.slug || '').startsWith('openai/gpt-');
+}
+
 function catalogSlug(model) {
-  if (!String(model.slug || '').startsWith('openai/gpt-')) return model.slug;
+  if (!isNativeGptModel(model)) return model.slug;
   const aliases = splitList(model.aliases);
   return aliases.find(alias => alias.startsWith('gpt-')) || model.slug.replace(/^openai\//, '');
 }
 
 export function createCodexModelCatalog(models) {
   if (!Array.isArray(models)) throw new Error('ZenMux model catalog did not return a model list');
-  const responseModels = models.filter(model => splitList(model.suitable_api).includes('responses'));
+  const responseModels = models
+    .filter(model => splitList(model.suitable_api).includes('responses'))
+    .sort((left, right) => Number(isNativeGptModel(right)) - Number(isNativeGptModel(left)));
   if (!responseModels.length) throw new Error('ZenMux model catalog did not return any Responses models');
 
   const catalogModels = responseModels.map((model, index) => {
     const supportsReasoning = Number(model.supports_reasoning) > 0;
-    const usesNativeGptAlias = String(model.slug || '').startsWith('openai/gpt-');
+    const usesNativeGptAlias = isNativeGptModel(model);
     const inputModalities = splitList(model.input_modalities)
       .filter(modality => modality === 'text' || modality === 'image');
     const contextWindow = Number(model.context_length) || 128_000;

@@ -48,6 +48,21 @@ test('does not inject a freeform patch tool for non-native model families', () =
   assert.equal(catalog.models[0].supports_search_tool, false);
 });
 
+test('places native GPT models first while preserving family order', () => {
+  const catalog = createCodexModelCatalog([
+    { slug: 'anthropic/claude-a', suitable_api: 'responses' },
+    { slug: 'openai/gpt-b', aliases: ['gpt-b'], suitable_api: 'responses' },
+    { slug: 'google/gemini-a', suitable_api: 'responses' },
+    { slug: 'openai/gpt-a', aliases: ['gpt-a'], suitable_api: 'responses' },
+  ]);
+
+  assert.deepEqual(
+    catalog.models.map(model => model.slug),
+    ['gpt-b', 'gpt-a', 'anthropic/claude-a', 'google/gemini-a'],
+  );
+  assert.deepEqual(catalog.models.map(model => model.priority), [0, 1, 2, 3]);
+});
+
 test('rejects an empty or protocol-mismatched catalog', () => {
   assert.throws(() => createCodexModelCatalog([]), /any Responses models/);
   assert.throws(
