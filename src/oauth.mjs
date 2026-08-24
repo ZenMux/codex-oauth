@@ -17,6 +17,8 @@ import {
   writeCredentials,
 } from './storage.mjs';
 
+export const defaultMinimumAccessTokenLifetimeMs = 10 * 60 * 1000;
+
 export async function requestJson(url, options = {}, fetchImpl = fetch) {
   const response = await fetchImpl(url, {
     ...options,
@@ -184,7 +186,7 @@ export async function getAccessToken(options = {}) {
   return withRefreshLock(async () => {
     let credentials = await readCredentials();
     if (!credentials) throw new Error('Not signed in. Run `zenmux-codex-auth login` first.');
-    const minimumLifetimeMs = options.minimumLifetimeMs ?? 90_000;
+    const minimumLifetimeMs = options.minimumLifetimeMs ?? defaultMinimumAccessTokenLifetimeMs;
     if (Number(credentials.expires_at) <= Date.now() + minimumLifetimeMs) {
       credentials = await refreshCredentials(credentials, options.fetchImpl || fetch);
     }

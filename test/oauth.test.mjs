@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { productionOAuthClientId } from '../src/constants.mjs';
-import { normalizeCredentials, requestJson } from '../src/oauth.mjs';
+import {
+  defaultMinimumAccessTokenLifetimeMs,
+  normalizeCredentials,
+  requestJson,
+} from '../src/oauth.mjs';
 
 test('ships one stable production OAuth public client', () => {
   assert.equal(productionOAuthClientId, 'zpc_3GWvxDXg8RhAUzhJPVdgMueR');
+});
+
+test('refreshes access tokens ten minutes before expiry', () => {
+  assert.equal(defaultMinimumAccessTokenLifetimeMs, 10 * 60 * 1000);
 });
 
 test('normalizes rotating OAuth credentials', () => {
