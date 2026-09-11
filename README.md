@@ -63,9 +63,14 @@ wire_api = "responses"
 [model_providers.zenmux.auth]
 command = "/absolute/path/to/zenmux-codex-auth"
 args = ["token"]
-refresh_interval_ms = 300000
+refresh_interval_ms = 1
 timeout_ms = 15000
 ```
+
+Codex therefore re-runs the lightweight token command for each request. The
+command itself caches valid credentials, refreshes access tokens before expiry,
+and serializes concurrent refreshes. This avoids retaining an expired opaque
+bearer across laptop sleep or wake.
 
 ## Development configuration
 

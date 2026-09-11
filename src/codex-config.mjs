@@ -139,7 +139,10 @@ export function updateCodexConfig(source, commandPath, catalogPath = modelCatalo
     authHeader,
     `command = ${quoteToml(commandPath)}`,
     'args = ["token"]',
-    'refresh_interval_ms = 300000',
+    // Keep Codex's opaque bearer cache effectively request-scoped. The helper
+    // performs the actual expiry check and serialized OAuth refresh; a longer
+    // Codex cache can otherwise survive laptop sleep with an expired token.
+    'refresh_interval_ms = 1',
     'timeout_ms = 15000',
     '',
   );

@@ -24,7 +24,7 @@ trust_level = "trusted"
   assert.equal((updated.match(/\[model_providers\.zenmux\.auth\]/g) || []).length, 1);
   assert.doesNotMatch(updated, /ZENMUX_API_KEY|old\.example/);
   assert.match(updated, /command = "\/usr\/local\/bin\/zenmux-codex-auth"/);
-  assert.match(updated, /refresh_interval_ms = 300000/);
+  assert.match(updated, /refresh_interval_ms = 1/);
   assert.match(updated, /model_catalog_json = "\/home\/user\/\.config\/zenmux\/codex-oauth\/models\.json"/);
   assert.match(updated, /web_search = "disabled"/);
   assert.match(updated, /\[features\.multi_agent_v2\]\ntool_namespace = "agents"/);
