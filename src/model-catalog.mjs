@@ -16,6 +16,8 @@ const defaultModelMessages = {
   permissions: null,
 };
 
+const baseInstructions = defaultModelMessages.instructions_template;
+
 function splitList(value) {
   if (Array.isArray(value)) return value;
   return String(value || '').split(',').map(item => item.trim()).filter(Boolean);
@@ -56,6 +58,7 @@ export function createCodexModelCatalog(models) {
         priority: index,
         availability_nux: null,
         upgrade: null,
+        base_instructions: baseInstructions,
         model_messages: defaultModelMessages,
         truncation_policy: {
           mode: 'tokens',

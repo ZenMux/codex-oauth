@@ -30,6 +30,11 @@ test('builds a Codex catalog from production Responses models only', () => {
   assert.equal(catalog.models[0].tool_mode, null);
   assert.equal(catalog.models[0].multi_agent_version, 'v2');
   assert.equal(catalog.models[0].support_verbosity, true);
+  assert.equal(catalog.models[0].base_instructions.length > 0, true);
+  assert.equal(
+    catalog.models[0].base_instructions,
+    catalog.models[0].model_messages.instructions_template,
+  );
   assert.equal(catalog.models[0].model_messages.instructions_template.length > 0, true);
   assert.equal(catalog.models[0].apply_patch_tool_type, 'freeform');
 });
