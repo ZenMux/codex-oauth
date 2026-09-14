@@ -1,6 +1,6 @@
 {
   "name": "@zenmux/codex-oauth",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "OAuth 2.0 PKCE authentication helper for using ZenMux as a custom model provider in Codex",
   "type": "module",
   "bin": {

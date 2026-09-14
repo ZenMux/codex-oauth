@@ -71,6 +71,7 @@ export function createCodexModelCatalog(models) {
         ...(usesNativeGptAlias ? { web_search_tool_type: 'text_and_image' } : {}),
         include_plugin_usage_instructions: false,
         include_skills_usage_instructions: false,
+        supports_reasoning_summaries: supportsReasoning,
         service_tiers: [],
         additional_speed_tiers: [],
         comp_hash: 'zenmux-0.2.1',

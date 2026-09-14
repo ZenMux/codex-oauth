@@ -2,6 +2,26 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createCodexModelCatalog } from '../src/model-catalog.mjs';
 
+const codex0144RequiredModelFields = [
+  'slug',
+  'display_name',
+  'supported_reasoning_levels',
+  'shell_type',
+  'visibility',
+  'supported_in_api',
+  'priority',
+  'availability_nux',
+  'upgrade',
+  'base_instructions',
+  'supports_reasoning_summaries',
+  'support_verbosity',
+  'default_verbosity',
+  'apply_patch_tool_type',
+  'truncation_policy',
+  'supports_parallel_tool_calls',
+  'experimental_supported_tools',
+];
+
 test('builds a Codex catalog from production Responses models only', () => {
   const catalog = createCodexModelCatalog([
     {
@@ -36,7 +56,11 @@ test('builds a Codex catalog from production Responses models only', () => {
     catalog.models[0].model_messages.instructions_template,
   );
   assert.equal(catalog.models[0].model_messages.instructions_template.length > 0, true);
+  assert.equal(catalog.models[0].supports_reasoning_summaries, true);
   assert.equal(catalog.models[0].apply_patch_tool_type, 'freeform');
+  for (const field of codex0144RequiredModelFields) {
+    assert.equal(field in catalog.models[0], true, `missing Codex 0.144 field: ${field}`);
+  }
 });
 
 test('does not inject a freeform patch tool for non-native model families', () => {
@@ -49,8 +73,19 @@ test('does not inject a freeform patch tool for non-native model families', () =
   }]);
   assert.equal(catalog.models[0].apply_patch_tool_type, null);
   assert.equal(catalog.models[0].multi_agent_version, null);
+  assert.equal(catalog.models[0].supports_reasoning_summaries, true);
   assert.equal('web_search_tool_type' in catalog.models[0], false);
   assert.equal(catalog.models[0].supports_search_tool, false);
+});
+
+test('disables reasoning summaries for models without reasoning support', () => {
+  const catalog = createCodexModelCatalog([{
+    slug: 'openai/gpt-no-reasoning',
+    aliases: ['gpt-no-reasoning'],
+    suitable_api: 'responses',
+    supports_reasoning: 0,
+  }]);
+  assert.equal(catalog.models[0].supports_reasoning_summaries, false);
 });
 
 test('places native GPT models first while preserving family order', () => {
