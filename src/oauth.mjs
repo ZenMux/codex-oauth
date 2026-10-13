@@ -124,7 +124,11 @@ function waitForAuthorization({ clientId, challenge, state, timeoutMs = 5 * 60 *
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
-      server.close();
+      // A browser may leave speculative TCP connections with no HTTP request.
+      // Allow the callback response to flush, but bound graceful shutdown.
+      const shutdown = setTimeout(() => server.closeAllConnections(), 1000);
+      shutdown.unref();
+      server.close(() => clearTimeout(shutdown));
       callback();
     };
     const server = createServer((request, response) => {
