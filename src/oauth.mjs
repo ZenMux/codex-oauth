@@ -1,3 +1,4 @@
+import { recoverRefresh, refreshWithRecovery } from './refresh-recovery.mjs';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import {
@@ -10,8 +11,10 @@ import {
 import { buildAuthorizationUrl, createPkce, createState } from './pkce.mjs';
 import {
   deleteCredentials,
+  deleteRefreshRecovery,
   readClientId,
   readCredentials,
+  readRefreshRecovery,
   withRefreshLock,
   writeClientId,
   writeCredentials,
@@ -40,19 +43,25 @@ export function renderOAuthCompletionPage() {
 }
 
 export async function requestJson(url, options = {}, fetchImpl = fetch) {
+  const { onStage, ...requestOptions } = options;
   const response = await fetchImpl(url, {
-    ...options,
-    signal: options.signal || AbortSignal.timeout(10_000),
+    ...requestOptions,
+    signal: requestOptions.signal || AbortSignal.timeout(10_000),
   });
+  onStage?.('response_headers', { status: response.status, requestId: /^[a-zA-Z0-9_-]{1,128}$/.test(response.headers.get('x-zenmux-requestid') || '') ? response.headers.get('x-zenmux-requestid') : undefined });
   const text = await response.text();
+  onStage?.('response_body_read');
   let payload;
   try {
     payload = text ? JSON.parse(text) : {};
   } catch {
     throw new Error(`ZenMux returned a non-JSON response (${response.status})`);
   }
+  onStage?.('response_parsed');
   if (!response.ok) {
-    throw new Error(payload.error_description || payload.message || payload.error || `ZenMux request failed (${response.status})`);
+    const error = new Error(payload.error_description || payload.message || payload.error || `ZenMux request failed (${response.status})`);
+    error.oauthCode = ['invalid_grant', 'invalid_client', 'server_error', 'temporarily_unavailable'].includes(payload.error) ? payload.error : 'http_error';
+    throw error;
   }
   return payload;
 }
@@ -79,16 +88,17 @@ export async function registerClient(fetchImpl = fetch) {
   return payload.client_id;
 }
 
-export async function exchangeToken(parameters, fetchImpl = fetch) {
+export async function exchangeToken(parameters, fetchImpl = fetch, onStage) {
   return requestJson(`${oauthOrigin}/oauth/token`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(parameters),
+    onStage,
   }, fetchImpl);
 }
 
 export function normalizeCredentials(tokens, previousRefreshToken) {
-  if (!tokens.access_token) throw new Error('ZenMux did not return an access token');
+  if (typeof tokens?.access_token !== 'string' || !tokens.access_token) throw new Error('ZenMux did not return an access token');
   const refreshToken = tokens.refresh_token || previousRefreshToken;
   if (!refreshToken) throw new Error('ZenMux did not return a refresh token');
   const expiresIn = Number(tokens.expires_in);
@@ -190,29 +200,51 @@ export async function login(fetchImpl = fetch) {
     code_verifier: verifier,
   }, fetchImpl);
   const credentials = normalizeCredentials(tokens);
-  await writeCredentials(credentials);
+  await withRefreshLock(async () => {
+    await writeCredentials(credentials);
+    await deleteRefreshRecovery();
+  });
   return credentials;
 }
 
+async function refreshCredentialsLocked(credentials, fetchImpl) {
+  return refreshWithRecovery(credentials, async onStage => {
+    const clientId = await registerClient(fetchImpl);
+    const tokens = await exchangeToken({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      refresh_token: credentials.refresh_token,
+    }, fetchImpl, onStage);
+    // ZenMux rotates on every refresh: retaining the consumed token is unsafe.
+    if (typeof tokens.refresh_token !== 'string' || !tokens.refresh_token || tokens.refresh_token === credentials.refresh_token) {
+      throw new Error('ZenMux did not return a new refresh token');
+    }
+    return normalizeCredentials(tokens);
+  });
+}
+
 export async function refreshCredentials(credentials, fetchImpl = fetch) {
-  const clientId = await registerClient(fetchImpl);
-  const tokens = await exchangeToken({
-    grant_type: 'refresh_token',
-    client_id: clientId,
-    refresh_token: credentials.refresh_token,
-  }, fetchImpl);
-  const refreshed = normalizeCredentials(tokens, credentials.refresh_token);
-  await writeCredentials(refreshed);
-  return refreshed;
+  return withRefreshLock(async () => {
+    const current = await readCredentials();
+    if (!current) throw new Error('Not signed in. Run `zenmux-codex-auth login` first.');
+    const recovered = await recoverRefresh(current);
+    // Another helper may have refreshed while this caller waited for the lock.
+    if (recovered.refresh_token !== credentials.refresh_token) return recovered;
+    return refreshCredentialsLocked(recovered, fetchImpl);
+  });
 }
 
 export async function getAccessToken(options = {}) {
   return withRefreshLock(async () => {
     let credentials = await readCredentials();
     if (!credentials) throw new Error('Not signed in. Run `zenmux-codex-auth login` first.');
+    if (typeof credentials.refresh_token !== 'string' || !credentials.refresh_token || !Number.isFinite(credentials.expires_at)) {
+      throw new Error('Invalid saved OAuth credentials; run `zenmux-codex-auth login`');
+    }
+    credentials = await recoverRefresh(credentials);
     const minimumLifetimeMs = options.minimumLifetimeMs ?? defaultMinimumAccessTokenLifetimeMs;
     if (Number(credentials.expires_at) <= Date.now() + minimumLifetimeMs) {
-      credentials = await refreshCredentials(credentials, options.fetchImpl || fetch);
+      credentials = await refreshCredentialsLocked(credentials, options.fetchImpl || fetch);
     }
     return credentials.access_token;
   });
@@ -220,8 +252,10 @@ export async function getAccessToken(options = {}) {
 
 export async function getStatus() {
   const credentials = await readCredentials();
+  const recovery = await readRefreshRecovery();
   return {
     signedIn: Boolean(credentials),
+    refreshRecovery: recovery?.phase || null,
     expiresAt: credentials?.expires_at ? new Date(credentials.expires_at) : null,
     scopes: credentials?.scope || null,
     provider: apiBaseUrl,
@@ -232,5 +266,8 @@ export async function getStatus() {
 }
 
 export async function logout() {
-  await deleteCredentials();
+  await withRefreshLock(async () => {
+    await deleteCredentials();
+    await deleteRefreshRecovery();
+  });
 }

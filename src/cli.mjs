@@ -51,6 +51,8 @@ export async function runCli(args) {
     process.stdout.write(`Storage: ${status.storage}\n`);
     if (status.expiresAt) process.stdout.write(`Access token expires: ${status.expiresAt.toISOString()}\n`);
     if (status.scopes) process.stdout.write(`Scopes: ${status.scopes}\n`);
+    if (status.refreshRecovery === 'pending') process.stdout.write('Refresh: previous outcome unknown; run `zenmux-codex-auth login`\n');
+    if (status.refreshRecovery === 'received') process.stdout.write('Refresh: new credentials journaled; the next token command will recover them\n');
     return;
   }
   if (command === 'logout') {

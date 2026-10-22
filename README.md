@@ -123,3 +123,34 @@ This package executes as the current user and modifies the user-level Codex conf
 ## License
 
 MIT
+
+### Refresh recovery (0.2.10)
+
+Refresh operations, credential reads, and login/logout credential updates are
+serialized with an atomic directory lock. Stop in-flight old helper versions
+before upgrading; do not run pre-0.2.10 helpers against the same credential store.
+A stopped new helper's lock becomes stale after 60 seconds. Do not manually remove
+an active lock.
+
+Before contacting the token endpoint, the helper durably records a pending
+refresh. After receiving and validating the rotated pair, it saves a recovery
+record before replacing the primary credentials. Transient local writes are
+retried without repeating the network refresh. If installation of the new pair
+fails, the next `token` invocation recovers it from the journal without sending
+the consumed refresh token again. Records use macOS Keychain by default, or a
+private `refresh-recovery.json` alongside file-based credentials on Linux.
+Do not share either credential file.
+
+If a refresh response is lost, incomplete, invalid, or cannot be saved anywhere,
+the helper refuses to replay the old token and reports that reauthorization is
+required. `zenmux-codex-auth login` installs a new pair and clears recovery state.
+This prevents a retry from revoking the token family; transparent recovery of a
+lost response still requires server-side idempotent rotation support. No such
+server protocol is implemented by this release.
+
+Refresh events are JSON lines on stderr with an attempt ID and stages for
+response headers, complete body, parsing, recovery persistence, primary
+persistence, and blocked retries. Token stdout is unchanged. Logs contain no
+access/refresh tokens or raw request/response bodies. Retain stderr in the host's
+logs to diagnose interruptions. `status` is read-only and also reports recovery
+state.

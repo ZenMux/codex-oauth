@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
-import { chmod, mkdir, open, readFile, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import lockfile from 'proper-lockfile';
 import { promisify } from 'node:util';
 import {
   clientStatePath,
@@ -26,9 +27,19 @@ async function readJson(path, fallback) {
 async function writePrivateJson(path, value) {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   const temporary = `${path}.${process.pid}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
-  await chmod(temporary, 0o600);
-  await rename(temporary, path);
+  let handle;
+  try {
+    handle = await open(temporary, 'w', 0o600);
+    await handle.chmod(0o600);
+    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`);
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+    await rename(temporary, path);
+  } finally {
+    await handle?.close();
+    await unlink(temporary).catch(error => { if (error.code !== 'ENOENT') throw error; });
+  }
 }
 
 export async function readClientId(origin = oauthOrigin) {
@@ -46,13 +57,13 @@ function usesMacKeychain() {
   return process.platform === 'darwin' && process.env.ZENMUX_OAUTH_STORAGE !== 'file';
 }
 
-export async function readCredentials(origin = oauthOrigin) {
+async function readStored(origin, service, filePath) {
   if (usesMacKeychain()) {
     try {
       const { stdout } = await execFileAsync('security', [
         'find-generic-password',
         '-a', credentialAccount(origin),
-        '-s', keychainService,
+        '-s', service,
         '-w',
       ], { encoding: 'utf8', maxBuffer: 1024 * 1024 });
       return JSON.parse(stdout.trim());
@@ -63,17 +74,17 @@ export async function readCredentials(origin = oauthOrigin) {
       throw new Error(`Unable to read credentials from macOS Keychain: ${error.message}`);
     }
   }
-  const credentials = await readJson(fallbackCredentialsPath, {});
+  const credentials = await readJson(filePath, {});
   return credentials[origin] || null;
 }
 
-export async function writeCredentials(credentials, origin = oauthOrigin) {
+async function writeStored(credentials, origin, service, filePath) {
   if (usesMacKeychain()) {
     try {
       await execFileAsync('security', [
         'add-generic-password',
         '-a', credentialAccount(origin),
-        '-s', keychainService,
+        '-s', service,
         '-w', JSON.stringify(credentials),
         '-U',
       ], { encoding: 'utf8', maxBuffer: 1024 * 1024 });
@@ -83,69 +94,60 @@ export async function writeCredentials(credentials, origin = oauthOrigin) {
     }
     return;
   }
-  const stored = await readJson(fallbackCredentialsPath, {});
+  const stored = await readJson(filePath, {});
   stored[origin] = credentials;
-  await writePrivateJson(fallbackCredentialsPath, stored);
+  await writePrivateJson(filePath, stored);
 }
 
-export async function deleteCredentials(origin = oauthOrigin) {
+async function deleteStored(origin, service, filePath) {
   if (usesMacKeychain()) {
     try {
       await execFileAsync('security', [
         'delete-generic-password',
         '-a', credentialAccount(origin),
-        '-s', keychainService,
+        '-s', service,
       ], { encoding: 'utf8', maxBuffer: 1024 * 1024 });
     } catch (error) {
       if (error.code !== 44 && !error.stderr?.includes('could not be found')) throw error;
     }
     return;
   }
-  const stored = await readJson(fallbackCredentialsPath, {});
+  const stored = await readJson(filePath, {});
   delete stored[origin];
-  await writePrivateJson(fallbackCredentialsPath, stored);
+  await writePrivateJson(filePath, stored);
 }
+
+export const readCredentials = (origin = oauthOrigin) => readStored(origin, keychainService, fallbackCredentialsPath);
+export const writeCredentials = (value, origin = oauthOrigin) => writeStored(value, origin, keychainService, fallbackCredentialsPath);
+export const deleteCredentials = (origin = oauthOrigin) => deleteStored(origin, keychainService, fallbackCredentialsPath);
+
+// Recovery data uses the same security boundary as the primary credentials.
+const recoveryPath = join(stateDir, 'refresh-recovery.json');
+const recoveryService = `${keychainService}.refresh-recovery`;
+export const readRefreshRecovery = () => readStored(oauthOrigin, recoveryService, recoveryPath);
+export const writeRefreshRecovery = value => writeStored(value, oauthOrigin, recoveryService, recoveryPath);
+export const deleteRefreshRecovery = () => deleteStored(oauthOrigin, recoveryService, recoveryPath);
 
 export async function withRefreshLock(operation, options = {}) {
   const timeoutMs = options.timeoutMs ?? 5000;
   const retryMs = options.retryMs ?? 100;
   await mkdir(stateDir, { recursive: true, mode: 0o700 });
-  const deadline = Date.now() + timeoutMs;
-  let handle;
-  while (!handle) {
-    try {
-      handle = await open(refreshLockPath, 'wx', 0o600);
-      await handle.writeFile(`${process.pid}\n`);
-    } catch (error) {
-      if (error.code !== 'EEXIST') throw error;
-      try {
-        const ownerPid = Number((await readFile(refreshLockPath, 'utf8')).trim());
-        if (!Number.isInteger(ownerPid) || ownerPid <= 0) {
-          await unlink(refreshLockPath);
-          continue;
-        }
-        try {
-          process.kill(ownerPid, 0);
-        } catch (ownerError) {
-          if (ownerError.code === 'ESRCH') {
-            await unlink(refreshLockPath);
-            continue;
-          }
-        }
-      } catch (lockError) {
-        if (lockError.code === 'ENOENT') continue;
-        throw lockError;
-      }
-      if (Date.now() >= deadline) throw new Error('Timed out waiting for another token refresh');
-      await new Promise(resolve => setTimeout(resolve, retryMs));
+  // mkdir acquisition has no empty-PID-file window. A heartbeat allows recovery
+  // after a killed helper, without deleting a live process's initializing lock.
+  const release = await lockfile.lock(stateDir, {
+    lockfilePath: refreshLockPath,
+    stale: 60_000,
+    update: 10_000,
+    retries: { retries: Math.ceil(timeoutMs / retryMs), minTimeout: retryMs, maxTimeout: retryMs, factor: 1 },
+  }).catch(error => {
+    if (error.code === 'ELOCKED' || error.code === 'ENOTDIR') {
+      throw new Error('Timed out waiting for another token refresh; stop old helper versions before upgrading');
     }
-  }
+    throw error;
+  });
   try {
     return await operation();
   } finally {
-    await handle.close();
-    await unlink(refreshLockPath).catch(error => {
-      if (error.code !== 'ENOENT') throw error;
-    });
+    await release();
   }
 }
