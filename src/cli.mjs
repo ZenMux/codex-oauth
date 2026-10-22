@@ -7,7 +7,8 @@ Usage:
   zenmux-codex-auth install  Configure ZenMux and its production Responses catalog
   zenmux-codex-auth uninstall [--force]
                              Restore the Codex config saved before installation
-  zenmux-codex-auth login    Sign in to ZenMux with OAuth 2.0 PKCE
+  zenmux-codex-auth login [--no-browser]
+                             Sign in with browser callback or pasted callback URL
   zenmux-codex-auth token    Print a valid access token for Codex auth.command
   zenmux-codex-auth status   Show authentication status without revealing tokens
   zenmux-codex-auth logout   Remove saved OAuth credentials
@@ -36,7 +37,9 @@ export async function runCli(args) {
     return;
   }
   if (command === 'login') {
-    const credentials = await login();
+    const flags = args.slice(1);
+    if (flags.some(flag => flag !== '--no-browser')) throw new Error('Unknown login option; use login [--no-browser]');
+    const credentials = await login(undefined, { noBrowser: flags.includes('--no-browser') });
     process.stdout.write(`Signed in to ZenMux. Access token expires at ${new Date(credentials.expires_at).toISOString()}.\n`);
     return;
   }

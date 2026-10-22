@@ -154,3 +154,28 @@ persistence, and blocked retries. Token stdout is unchanged. Logs contain no
 access/refresh tokens or raw request/response bodies. Retain stderr in the host's
 logs to diagnose interruptions. `status` is read-only and also reports recovery
 state.
+
+### SSH / headless login (0.2.11)
+
+On Poolab or another remote machine, run:
+
+```sh
+zenmux-codex-auth login --no-browser
+```
+
+1. Open the printed authorization link in your local browser.
+2. Approve access. If the browser cannot open the final `http://127.0.0.1:PORT/callback?...`
+   page, copy the **complete URL from its address bar anyway**.
+3. Paste that URL at `Callback URL / 粘贴回调地址:` in the same remote terminal and press Enter.
+4. Wait for `Signed in to ZenMux`; the helper saves credentials and exits automatically.
+
+Normal `login` also offers pasted input alongside the automatic HTTP callback.
+The helper validates the exact redirect address and state, and exchanges the code
+only once using the PKCE verifier held by this login process. Invalid input can
+be corrected without restarting. EOF disables pasted input but leaves the HTTP
+callback available. Authorization expires after five minutes.
+
+Callback URLs contain a short-lived authorization code: paste them only into the
+waiting helper, not into chat, a shell command, a ticket, or shared logs. The helper
+does not print pasted URLs or fetch them over the network. This feature simplifies
+reauthorization; it does not change the refresh-recovery safety rules above.

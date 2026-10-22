@@ -1,3 +1,5 @@
+import { createInterface } from 'node:readline';
+import { parseOAuthCallback } from './oauth-callback.mjs';
 import { recoverRefresh, refreshWithRecovery } from './refresh-recovery.mjs';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -126,14 +128,18 @@ function openBrowser(url) {
   return true;
 }
 
-function waitForAuthorization({ clientId, challenge, state, timeoutMs = 5 * 60 * 1000 }) {
+function waitForAuthorization({ clientId, challenge, state, noBrowser = false, timeoutMs = 5 * 60 * 1000 }) {
   return new Promise((resolve, reject) => {
     let redirectUri = '';
     let settled = false;
+    let input;
     const finish = (callback) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      input?.close();
+      process.stdin.pause();
+      process.stdin.unref?.();
       // A browser may leave speculative TCP connections with no HTTP request.
       // Allow the callback response to flush, but bound graceful shutdown.
       const shutdown = setTimeout(() => server.closeAllConnections(), 1000);
@@ -151,19 +157,23 @@ function waitForAuthorization({ clientId, challenge, state, timeoutMs = 5 * 60 *
         response.writeHead(404).end('Not found');
         return;
       }
-      const oauthError = requestUrl.searchParams.get('error');
-      const errorDescription = requestUrl.searchParams.get('error_description');
-      const returnedState = requestUrl.searchParams.get('state');
-      const code = requestUrl.searchParams.get('code');
-      if (oauthError || returnedState !== state || !code) {
+      let result;
+      try {
+        result = parseOAuthCallback(requestUrl.href, redirectUri, state);
+      } catch {
+        response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+        response.end('Callback does not match this login session.');
+        return;
+      }
+      if (result.error) {
         response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
         response.end('ZenMux authorization failed. You can close this window.');
-        finish(() => reject(new Error(errorDescription || oauthError || 'OAuth callback state mismatch')));
+        finish(() => reject(new Error(result.error)));
         return;
       }
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       response.end(renderOAuthCompletionPage());
-      finish(() => resolve({ code, redirectUri }));
+      finish(() => resolve({ code: result.code, redirectUri }));
     });
     server.on('error', error => finish(() => reject(error)));
     server.listen(0, '127.0.0.1', () => {
@@ -177,8 +187,30 @@ function waitForAuthorization({ clientId, challenge, state, timeoutMs = 5 * 60 *
         state,
         challenge,
       });
-      const opened = openBrowser(authorizeUrl.toString());
+      const opened = !noBrowser && openBrowser(authorizeUrl.toString());
       process.stderr.write(`${opened ? 'Opened' : 'Open'} this URL to authorize Codex:\n${authorizeUrl}\n`);
+      process.stderr.write('Waiting for browser callback. For SSH/headless login, paste the complete callback URL below and press Enter.\nIf the browser cannot open 127.0.0.1, copy its address bar anyway. Do not share this URL.\nCallback URL / 粘贴回调地址: ');
+      process.stdin.ref?.();
+      input = createInterface({ input: process.stdin, terminal: false, crlfDelay: Infinity });
+      input.on('line', line => {
+        if (settled || !line.trim()) return;
+        let result;
+        try {
+          result = parseOAuthCallback(line, redirectUri, state);
+        } catch (error) {
+          process.stderr.write(`\n${error.message}. Try again.\nCallback URL / 粘贴回调地址: `);
+          return;
+        }
+        process.stderr.write('\n');
+        if (result.error) {
+          finish(() => reject(new Error(result.error)));
+        } else {
+          finish(() => resolve({ code: result.code, redirectUri }));
+        }
+      });
+      input.on('error', () => finish(() => reject(new Error('Unable to read callback URL from stdin'))));
+      // EOF only disables manual entry; automatic HTTP callback still works.
+
     });
     const timeout = setTimeout(() => {
       finish(() => reject(new Error('ZenMux OAuth callback timed out after 5 minutes')));
@@ -187,11 +219,11 @@ function waitForAuthorization({ clientId, challenge, state, timeoutMs = 5 * 60 *
   });
 }
 
-export async function login(fetchImpl = fetch) {
+export async function login(fetchImpl = fetch, options = {}) {
   const clientId = await registerClient(fetchImpl);
   const { verifier, challenge } = createPkce();
   const state = createState();
-  const callback = await waitForAuthorization({ clientId, challenge, state });
+  const callback = await waitForAuthorization({ clientId, challenge, state, noBrowser: options.noBrowser });
   const tokens = await exchangeToken({
     grant_type: 'authorization_code',
     client_id: clientId,
