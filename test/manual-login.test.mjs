@@ -21,10 +21,10 @@ for(const mode of ['paste','invalid-then-paste','duplicate','denied','automatic-
       return new Response(JSON.stringify({access_token:'synthetic-access',refresh_token:'synthetic-refresh',expires_in:7200}));
     };
     const {runCli}=await import(${JSON.stringify(new URL('../src/cli.mjs',import.meta.url).href)});
-    await runCli(['login','--no-browser']).catch(e=>{process.stderr.write(e.message+'\\n');process.exitCode=1;});
+    await runCli(['login']).catch(e=>{process.stderr.write(e.message+'\\n');process.exitCode=1;});
     process.stderr.write('RESULT '+JSON.stringify(summary||{calls})+'\\n');
   `;
-  const child=spawn(process.execPath,['--input-type=module','-e',script],{env:{...process.env,ZENMUX_OAUTH_STORAGE:'file',ZENMUX_OAUTH_STATE_DIR:dir,ZENMUX_OAUTH_CLIENT_ID:'synthetic-client',ZENMUX_OAUTH_ORIGIN:'https://zenmux.ai'},stdio:['pipe','pipe','pipe']});
+  const child=spawn(process.execPath,['--input-type=module','-e',script],{env:{...process.env,SSH_CONNECTION:'synthetic-ssh',ZENMUX_OAUTH_STORAGE:'file',ZENMUX_OAUTH_STATE_DIR:dir,ZENMUX_OAUTH_CLIENT_ID:'synthetic-client',ZENMUX_OAUTH_ORIGIN:'https://zenmux.ai'},stdio:['pipe','pipe','pipe']});
   const closed=once(child,'close');let out='',err='';let deadline;
   child.stdout.on('data',c=>out+=c);
   t.after(async()=>{clearTimeout(deadline);if(child.exitCode===null&&child.signalCode===null)child.kill();await closed;await rm(dir,{recursive:true,force:true});});

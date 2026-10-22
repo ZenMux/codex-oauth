@@ -116,8 +116,15 @@ export function normalizeCredentials(tokens, previousRefreshToken) {
   };
 }
 
+export function shouldOpenBrowser({ platform = process.platform, env = process.env, noBrowser = false } = {}) {
+  if (noBrowser || env.ZENMUX_OAUTH_NO_BROWSER === '1') return false;
+  if ([env.SSH_CONNECTION, env.SSH_CLIENT, env.SSH_TTY].some(value => value?.trim())) return false;
+  if (platform !== 'darwin' && platform !== 'win32' && !env.DISPLAY?.trim() && !env.WAYLAND_DISPLAY?.trim()) return false;
+  return true;
+}
+
 function openBrowser(url) {
-  if (process.env.ZENMUX_OAUTH_NO_BROWSER === '1') return false;
+  if (!shouldOpenBrowser()) return false;
   const command = process.platform === 'darwin' ? 'open'
     : process.platform === 'win32' ? 'cmd'
       : 'xdg-open';

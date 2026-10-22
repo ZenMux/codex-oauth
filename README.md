@@ -179,3 +179,10 @@ Callback URLs contain a short-lived authorization code: paste them only into the
 waiting helper, not into chat, a shell command, a ticket, or shared logs. The helper
 does not print pasted URLs or fetch them over the network. This feature simplifies
 reauthorization; it does not change the refresh-recovery safety rules above.
+
+SSH sessions are detected automatically (`SSH_CONNECTION`, `SSH_CLIENT`, or
+`SSH_TTY`), as are Linux/Unix environments without `DISPLAY` or
+`WAYLAND_DISPLAY`. In these environments, plain `zenmux-codex-auth login`
+skips browser launch and prints the authorization link and callback prompt.
+Local macOS and Windows sessions still open the browser automatically.
+`--no-browser` and `ZENMUX_OAUTH_NO_BROWSER=1` always suppress browser launch.
